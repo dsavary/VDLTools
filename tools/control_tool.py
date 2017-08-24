@@ -22,14 +22,22 @@
 """
 from __future__ import division
 from PyQt4.QtCore import QCoreApplication
+from PyQt4.QtGui import QProgressBar,QMessageBox
 from .area_tool import AreaTool
 from ..ui.choose_control_dialog import ChooseControlDialog
-from qgis.gui import QgsMessageBar
+from qgis.gui import (QgsMessageBar,
+                      QgsLegendInterface)
 from qgis.core import (QgsMapLayerRegistry,
                        QgsVectorLayer,
                        QgsGeometry,
-                       QgsFeature)
+                       QgsFeature,
+                       QgsDataSourceURI,
+                       QgsFeatureRequest,
+                       QgsProject,
+                       QGis,
+                       QgsWKBTypes)
 from ..core.db_connector import DBConnector
+from datetime import datetime
 
 
 class ControlTool(AreaTool):
@@ -85,6 +93,17 @@ class ControlTool(AreaTool):
             self.__iface.messageBar().pushMessage(QCoreApplication.translate("VDLTools", "No control db given !!"),
                                                   level=QgsMessageBar.CRITICAL, duration=0)
             return
+        """
+        Test si la couche / table qui contient l'ensemble des contrôles existe bien dans le projet
+        """
+
+        global layerCfgControl
+        try:
+            layerCfgControl = (l for l in self.__registry.mapLayers().values() if QgsDataSourceURI(l.source()).table() == self.tableConfig and hasattr(l, 'providerType') and l.providerType() == 'postgres').next()
+        except StopIteration:
+            textConfigLayer = u"La couche qui définit la liste des contrôles possible a mal été définie ou n'existe pas dans le projet, veuilliez l'ajouter au projet"
+            self.__iface.messageBar().pushMessage(textConfigLayer, level=QgsMessageBar.CRITICAL, duration=5)
+            layerCfgControl = None
 
         self.__chooseDlg = ChooseControlDialog(self.__requests.keys())
         self.__chooseDlg.okButton().clicked.connect(self.__onOk)
