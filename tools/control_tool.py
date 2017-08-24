@@ -54,6 +54,11 @@ class ControlTool(AreaTool):
             "nom1": self.__request1
         }
         self.__crs = None
+        self.__registry = QgsMapLayerRegistry.instance() # définition du registre des couches dans le projet
+        self.tableConfig = 'usr_control_request' # nom de la table/couche dans le projet qui liste tous les contrôles possible
+        self.__lrequests = [] # liste des requêtes actives
+        self.__outputLayers = [] # listes des couches de résultats à charger dans le projet
+        self.areaMax = 1000000 # tolérance de surface max. pour lancer un contrôle
 
     def toolName(self):
         """
