@@ -105,6 +105,56 @@ class ControlTool(AreaTool):
             self.__iface.messageBar().pushMessage(textConfigLayer, level=QgsMessageBar.CRITICAL, duration=5)
             layerCfgControl = None
 
+        """
+        Test si la zone de contrôle a bien été définie par l'utilisateur
+        """
+
+        if self.geom is None:
+             self.__iface.messageBar().pushMessage(u"zone de requête non définie, Veuillez définir une zone de contrôle (maintenir le clic de la souris)", level=QgsMessageBar.CRITICAL, duration=5)
+        else:
+            print self.geom.area()
+            if self.geom.area() > self.areaMax:
+                self.__iface.messageBar().pushMessage(u"Veuillez définir une zone de contrôle plus petite , max. = 1 km2", level=QgsMessageBar.CRITICAL, duration=5)
+
+                """
+                Question à l'utilisateur s'il veut continuer ou pas par rapport à une zone de contrôle hors tolérance
+                """
+                """
+                qstBox = QMessageBox()
+                qstText = u"Voulez-vous quand même continuer ??, le traitement peut prendre plusieurs minutes, voire plusieurs heures "
+                qstBox.setText(qstText)
+                qstBox.setWindowTitle(u"Zone de contrôle trop grande")
+                qstBox.setIcon(QMessageBox.Question)
+                qstBox.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+                repArea = qstBox.exec_()
+                # print qstBox.clickedButton().text() # retourne le texte du bouton cliqué
+                #bb = qstBox.clickedButton() # role du bouton cliqué (objet)
+                repMaxArea = qstBox.buttonRole(qstBox.clickedButton())
+                if repMaxArea == 0:
+                    print u"on continue malgré tout le traitement"
+                elif repMaxArea == 1:
+                    print u"on arrête le traitement"
+                #print repArea # réponse donnée par la touche cliqué sur la boite de dialogue
+                """
+            else:
+                """
+                Liste des contrôles actifs existants
+                """
+                req = QgsFeatureRequest().setFilterExpression('"active" is true')
+                for f in layerCfgControl.getFeatures(req):
+                    #layer_name = f[u"layer_name"]
+                    #self.__lrequests[str(f[u"id"])] = f[u"layer_name"]
+                    lrequests = {}
+                    lrequests["id"]=str(f[u"id"])
+                    lrequests["name"]=f[u"layer_name"]
+                    lrequests["code"]=f[u"code_error"]
+                    lrequests["check"]=f[u"check_defaut"]
+                    #self.__lrequests.append(str(f[u"id"]))
+                    self.__lrequests.append(lrequests)
+                # trier la liste de dictionnaire
+                self.__lrequests = sorted( self.__lrequests,key=lambda k: int(k['id']))
+                print self.__lrequests
+
         self.__chooseDlg = ChooseControlDialog(self.__requests.keys())
         self.__chooseDlg.okButton().clicked.connect(self.__onOk)
         self.__chooseDlg.cancelButton().clicked.connect(self.__onCancel)
@@ -142,7 +192,7 @@ class ControlTool(AreaTool):
             select_part += """, %s, pg_typeof(%s)""" % (f, f)
         from_part = """ FROM qwat_od.pipe """
         where_part = """WHERE ST_Intersects(geometry3d,ST_GeomFromText('%s',%s))""" \
-                     % (self.geom().exportToWkt(), str(self.__crs))
+                     % (self.geom.exportToWkt(), str(self.__crs))
         request = select_part + from_part + where_part
         print(request)
         self.__querying(request, layer_name, fNames)
