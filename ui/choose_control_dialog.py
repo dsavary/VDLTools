@@ -42,7 +42,8 @@ class ChooseControlDialog(QDialog):
         Constructor
         """
         QDialog.__init__(self)
-        self.__names = names
+        #self.__names = names
+        self.__listReq = names # récupération de la liste des requêtes possible
         self.setWindowTitle(QCoreApplication.translate("VDLTools", "Choose Controls"))
         self.__layout = QGridLayout()
 
@@ -59,6 +60,28 @@ class ChooseControlDialog(QDialog):
 
         self.__scrollLayout = QGridLayout()
 
+        """
+        création de la boite de dialogue avec la liste des controles possibles
+        """
+
+        for i in range(len(self.__listReq)):
+            textLabel = u""+ self.__listReq[i].get("id") + " - " + self.__listReq[i].get("name") + " (" + self.__listReq[i].get("code") + ")"
+            label = QLabel(textLabel)
+            label.setMinimumHeight(20)
+            #label.setMinimumWidth(50)
+            self.__controlsLabels.append(label)
+            self.__scrollLayout.addWidget(self.__controlsLabels[i], i+1, 0)
+            check = QCheckBox()
+            if self.__listReq[i].get("check") == 't':
+                check.setChecked(True)
+            else:
+                check.setChecked(False)
+            self.__controlsChecks.append(check)
+            self.__scrollLayout.addWidget(self.__controlsChecks[i], i+1, 1)
+
+        """
+        version précédente
+
         for i in range(len(self.__names)):
             label = QLabel(self.__names[i])
             label.setMinimumHeight(20)
@@ -69,7 +92,7 @@ class ChooseControlDialog(QDialog):
             check.setChecked(False)
             self.__controlsChecks.append(check)
             self.__scrollLayout.addWidget(self.__controlsChecks[i], i+1, 1)
-
+        """
         widget = QWidget()
         widget.setLayout(self.__scrollLayout)
 
@@ -112,7 +135,15 @@ class ChooseControlDialog(QDialog):
         :return: control list
         """
         controls = []
+        for i in range(len(self.__listReq)):
+            if self.__controlsChecks[i].isChecked():
+                #controls.append(self.__names[i])
+                controls.append(self.__listReq[i].get("id"))
+        """
+        version précédente
+
         for i in range(len(self.__names)):
             if self.__controlsChecks[i].isChecked():
                 controls.append(self.__names[i])
+        """
         return controls

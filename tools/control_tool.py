@@ -155,7 +155,8 @@ class ControlTool(AreaTool):
                 self.__lrequests = sorted( self.__lrequests,key=lambda k: int(k['id']))
                 print self.__lrequests
 
-        self.__chooseDlg = ChooseControlDialog(self.__requests.keys())
+        #self.__chooseDlg = ChooseControlDialog(self.__requests.keys())
+        self.__chooseDlg = ChooseControlDialog(self.__lrequests)
         self.__chooseDlg.okButton().clicked.connect(self.__onOk)
         self.__chooseDlg.cancelButton().clicked.connect(self.__onCancel)
         self.__chooseDlg.show()
