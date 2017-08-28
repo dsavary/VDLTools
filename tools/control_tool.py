@@ -155,17 +155,19 @@ class ControlTool(AreaTool):
                 self.__lrequests = sorted( self.__lrequests,key=lambda k: int(k['id']))
                 print self.__lrequests
 
-        #self.__chooseDlg = ChooseControlDialog(self.__requests.keys())
-        self.__chooseDlg = ChooseControlDialog(self.__lrequests)
-        self.__chooseDlg.okButton().clicked.connect(self.__onOk)
-        self.__chooseDlg.cancelButton().clicked.connect(self.__onCancel)
-        self.__chooseDlg.show()
+                #self.__chooseDlg = ChooseControlDialog(self.__requests.keys())
+                self.__chooseDlg = ChooseControlDialog(self.__lrequests)
+                self.__chooseDlg.okButton().clicked.connect(self.__onOk)
+                self.__chooseDlg.cancelButton().clicked.connect(self.__onCancel)
+                self.__chooseDlg.show()
 
     def __onCancel(self):
         """
         When the Cancel button in Choose Control Dialog is pushed
         """
         self.__chooseDlg.reject()
+        self.geom = None # supprimer la géométrie définie
+        self.__lrequests = [] # vider la liste des requêtes actives
 
     def __onOk(self):
         """
@@ -261,3 +263,5 @@ class ControlTool(AreaTool):
         """
         self.__chooseDlg = None
         self.__db.close()
+        self.geom = None # supprimer la géométrie définie
+        self.__lrequests = [] # vider la liste des requêtes actives
