@@ -65,7 +65,6 @@ class ControlTool(AreaTool):
         self.__registry = QgsMapLayerRegistry.instance() # définition du registre des couches dans le projet
         self.tableConfig = 'usr_control_request' # nom de la table/couche dans le projet qui liste tous les contrôles possible
         self.__lrequests = [] # liste des requêtes actives
-        self.__outputLayers = [] # listes des couches de résultats à charger dans le projet
         self.areaMax = 1000000 # tolérance de surface max. pour lancer un contrôle
 
     def toolName(self):
@@ -178,10 +177,54 @@ class ControlTool(AreaTool):
         self.__connector = DBConnector(self.ownSettings.ctlDb, self.__iface)
         self.__db = self.__connector.setConnection()
 
-        if self.__db is not None:
-            for name in self.__chooseDlg.controls():
-                self.__requests[name]()
+        if self.__db is not None and self.geom.area() > 0:
+            self.__createCtrlLayers(self.__chooseDlg.controls())
             self.__cancel()
+
+    def __createCtrlLayers(self,requete):
+        """
+        Création des couches de contrôles
+        - selon une requête SQL dans la base de données (choix  ou des contrôle par l'utilisateur)
+        - selon une zone géographique définie par l'utilisateur
+        :param requete: liste des requêtes
+        :return:
+        """
+
+        # récupérer la géométrie définie par l'utilisateur pour l'utiliser dans les requêtes SQL , conversion en géométrie binaire et dans le bon système de coordonnée)
+        self.__crs = self.__iface.mapCanvas().mapSettings().destinationCrs().postgisSrid() # défintion du système de coordonnées en sortie (par défaut 21781), récupérer des paramètres du projets
+        bbox = "(SELECT ST_GeomFromText('" + self.geom.exportToWkt() + "'," + str(self.__crs) + "))"
+
+        # paramètres de la source des couches à ajouter au projet
+        uri = QgsDataSourceURI()
+        uri.setConnection(self.__db.hostName(),str(self.__db.port()), self.__db.databaseName(),self.__db.userName(),self.__db.password())
+        uri.setSrid(str(self.__crs))
+        outputLayers = [] # listes des couches de résultats à charger dans le projet
+        for name in requete:
+            #self.__requests[name]()
+            for q in layerCfgControl.getFeatures(QgsFeatureRequest(int(name))):
+                query_fct = q[u"sql_function"]
+                query_fct = query_fct.replace("bbox",bbox)
+                query = "(SELECT * FROM "+ query_fct + ")"
+                if q[u"geom_type"] == "POINTZ":
+                    #uri.setWkbType(QGis.WKBPoint25D)
+                    uri.setWkbType(QgsWKBTypes.PointZ)
+                if q[u"geom_type"] == "LINESTRINGZ":
+                    #uri.setWkbType(QGis.WKBLineString25D)
+                    uri.setWkbType(QgsWKBTypes.LineStringZ)
+                uri.setDataSource('',query,q[u"geom_name"],"",q[u"key_attribute"])
+                layer = QgsVectorLayer(uri.uri(),q[u"layer_name"], "postgres")
+                print(layer.name())
+                print(layer.featureCount())
+                if layer.featureCount() > 0:
+                    outputLayers.append(layer)
+        if outputLayers is not None:
+            self.__addCtrlLayers(outputLayers)
+
+    def __addCtrlLayers(self, layers):
+        totalError = 0 # décompte des erreurs détectées (nombre d'objets dans chaque couche)
+        for i in range(0,len(layers)):
+            totalError = totalError + layers[i].featureCount()
+        print "Erreur totale : " + str(totalError)
 
     def __request1(self):
         """
