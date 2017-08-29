@@ -58,9 +58,6 @@ class ControlTool(AreaTool):
         self.__chooseDlg = None
         self.__db = None
         self.ownSettings = None
-        self.__requests = {
-            "nom1": self.__request1
-        }
         self.__crs = None
         self.__registry = QgsMapLayerRegistry.instance() # définition du registre des couches dans le projet
         self.tableConfig = 'usr_control_request' # nom de la table/couche dans le projet qui liste tous les contrôles possible
@@ -111,7 +108,7 @@ class ControlTool(AreaTool):
         if self.geom is None:
              self.__iface.messageBar().pushMessage(u"zone de requête non définie, Veuillez définir une zone de contrôle (maintenir le clic de la souris)", level=QgsMessageBar.CRITICAL, duration=5)
         else:
-            print self.geom.area()
+            #print self.geom.area()
             if self.geom.area() > self.areaMax:
                 self.__iface.messageBar().pushMessage(u"Veuillez définir une zone de contrôle plus petite , max. = 1 km2", level=QgsMessageBar.CRITICAL, duration=5)
 
@@ -141,20 +138,16 @@ class ControlTool(AreaTool):
                 """
                 req = QgsFeatureRequest().setFilterExpression('"active" is true')
                 for f in layerCfgControl.getFeatures(req):
-                    #layer_name = f[u"layer_name"]
-                    #self.__lrequests[str(f[u"id"])] = f[u"layer_name"]
                     lrequests = {}
                     lrequests["id"]=str(f[u"id"])
                     lrequests["name"]=f[u"layer_name"]
                     lrequests["code"]=f[u"code_error"]
                     lrequests["check"]=f[u"check_defaut"]
-                    #self.__lrequests.append(str(f[u"id"]))
                     self.__lrequests.append(lrequests)
                 # trier la liste de dictionnaire
                 self.__lrequests = sorted( self.__lrequests,key=lambda k: int(k['id']))
-                print self.__lrequests
+                #print self.__lrequests
 
-                #self.__chooseDlg = ChooseControlDialog(self.__requests.keys())
                 self.__chooseDlg = ChooseControlDialog(self.__lrequests)
                 self.__chooseDlg.okButton().clicked.connect(self.__onOk)
                 self.__chooseDlg.cancelButton().clicked.connect(self.__onCancel)
@@ -213,21 +206,15 @@ class ControlTool(AreaTool):
         i = 0
         totalError = 0                                                  # décompte des erreurs détectées (nombre d'objets dans chaque couche)
         for name in requete:
-            #self.__requests[name]()
             for q in layerCfgControl.getFeatures(QgsFeatureRequest(int(name))):
                 query_fct = q[u"sql_function"]
                 query_fct = query_fct.replace("bbox",bbox)
-                query = "(SELECT * FROM "+ query_fct + ")"
-                if q[u"geom_type"] == "POINTZ":
-                    #uri.setWkbType(QGis.WKBPoint25D)
-                    uri.setWkbType(QgsWKBTypes.PointZ)
-                if q[u"geom_type"] == "LINESTRINGZ":
-                    #uri.setWkbType(QGis.WKBLineString25D)
-                    uri.setWkbType(QgsWKBTypes.LineStringZ)
-                uri.setDataSource('',query,q[u"geom_name"],"",q[u"key_attribute"])
+                geom_type = QgsWKBTypes.parseType(q[u"geom_type"])      # récupérer le type de géométrie QGIS "QgsWKBTypes" depuis un type de géométrie WKT Postgis
+                uri.setWkbType(geom_type)
+                uri.setDataSource('',query_fct,q[u"geom_name"],"",q[u"key_attribute"])
                 layer = QgsVectorLayer(uri.uri(),q[u"layer_name"], "postgres")
-                print(layer.name())
-                print(layer.featureCount())
+                #print(layer.name())
+                #print(layer.featureCount())
                 totalError = totalError + layer.featureCount()
                 if layer.featureCount() > 0:
                     outputLayers.append(layer)
@@ -236,11 +223,11 @@ class ControlTool(AreaTool):
             i += 1
         if len(outputLayers) > 0:
             self.__addCtrlLayers(outputLayers)
-            print "Erreur totale : " + str(totalError)
+            #print "Erreur totale : " + str(totalError)
             self.__iface.messageBar().clearWidgets()
-            self.__iface.messageBar().pushMessage("Info", u"Toutes les couches ont été chargées avec succès dans le projet / Total des erreurs :" + str(totalError), level=QgsMessageBar.INFO, duration=0)
+            self.__iface.messageBar().pushMessage("Info", u"Toutes les couches ont été chargées avec succès dans le projet / Total des erreurs :" + str(totalError), level=QgsMessageBar.INFO, duration=10)
         else:
-            print "Erreur totale : " + str(totalError)
+            #print "Erreur totale : " + str(totalError)
             self.__iface.messageBar().clearWidgets()
             self.__iface.messageBar().pushMessage("Info", u"Yes !! Aucune erreur a été détectée sur la zone définie ", level=QgsMessageBar.INFO, duration=5)
 
@@ -250,7 +237,6 @@ class ControlTool(AreaTool):
         :param layers: Liste des couches à ajouter au projet
         :return:
         """
-
 
         groupName = 'CONTROL (' +datetime.now().strftime("%Y-%m-%d")+')' # définir le nom du groupe dans lequel seront ajouté chaque couche
         project_tree = QgsProject.instance().layerTreeRoot()             # arbre des couches
@@ -268,7 +254,16 @@ class ControlTool(AreaTool):
         self.__iface.mapCanvas().refresh()                              # rafraîchir la carte
 
 
+    def __cancel(self):
+        """
+        To cancel used variables
+        """
+        self.__chooseDlg = None
+        self.__db.close()
+        self.geom = None # supprimer la géométrie définie
+        self.__lrequests = [] # vider la liste des requêtes actives
 
+'''
     def __request1(self):
         """
         Request which can be choosed for control
@@ -342,12 +337,4 @@ class ControlTool(AreaTool):
                 feature.setAttribute(fNames[j], attributes[i][j])
             layer.addFeature(feature)
         layer.commitChanges()
-
-    def __cancel(self):
-        """
-        To cancel used variables
-        """
-        self.__chooseDlg = None
-        self.__db.close()
-        self.geom = None # supprimer la géométrie définie
-        self.__lrequests = [] # vider la liste des requêtes actives
+'''
