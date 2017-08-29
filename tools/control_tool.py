@@ -178,8 +178,13 @@ class ControlTool(AreaTool):
         self.__db = self.__connector.setConnection()
 
         if self.__db is not None and self.geom.area() > 0:
-            self.__createCtrlLayers(self.__chooseDlg.controls())
+            if len(self.__chooseDlg.controls()) == 0:
+                self.__iface.messageBar().pushMessage("Avertissement", u"Aucun contrôle sélectionné ", level=QgsMessageBar.INFO, duration=5)
+            else:
+                self.__createCtrlLayers(self.__chooseDlg.controls())
             self.__cancel()
+        else:
+            self.__iface.messageBar().pushMessage("Avertissement", u"Problème de connexion à la base de données ou surface trop petite ", level=QgsMessageBar.INFO, duration=5)
 
     def __createCtrlLayers(self,requete):
         """
@@ -190,6 +195,12 @@ class ControlTool(AreaTool):
         :return:
         """
 
+        self.__iface.messageBar().clearWidgets()
+        progressMessageBar = self.__iface.messageBar()                  # ajout d'une barre de progression pour voir le chargement progressif des couches
+        progress = QProgressBar()
+        progress.setMaximum(100)
+        progressMessageBar.pushWidget(progress)
+
         # récupérer la géométrie définie par l'utilisateur pour l'utiliser dans les requêtes SQL , conversion en géométrie binaire et dans le bon système de coordonnée)
         self.__crs = self.__iface.mapCanvas().mapSettings().destinationCrs().postgisSrid() # défintion du système de coordonnées en sortie (par défaut 21781), récupérer des paramètres du projets
         bbox = "(SELECT ST_GeomFromText('" + self.geom.exportToWkt() + "'," + str(self.__crs) + "))"
@@ -199,6 +210,8 @@ class ControlTool(AreaTool):
         uri.setConnection(self.__db.hostName(),str(self.__db.port()), self.__db.databaseName(),self.__db.userName(),self.__db.password())
         uri.setSrid(str(self.__crs))
         outputLayers = [] # listes des couches de résultats à charger dans le projet
+        i = 0
+        totalError = 0                                                  # décompte des erreurs détectées (nombre d'objets dans chaque couche)
         for name in requete:
             #self.__requests[name]()
             for q in layerCfgControl.getFeatures(QgsFeatureRequest(int(name))):
@@ -215,16 +228,46 @@ class ControlTool(AreaTool):
                 layer = QgsVectorLayer(uri.uri(),q[u"layer_name"], "postgres")
                 print(layer.name())
                 print(layer.featureCount())
+                totalError = totalError + layer.featureCount()
                 if layer.featureCount() > 0:
                     outputLayers.append(layer)
-        if outputLayers is not None:
+            percent = (float(i+1.0)/float(len(requete))) * 100           # Faire évoluer la barre de progression du traitement
+            progress.setValue(percent)
+            i += 1
+        if len(outputLayers) > 0:
             self.__addCtrlLayers(outputLayers)
+            print "Erreur totale : " + str(totalError)
+            self.__iface.messageBar().clearWidgets()
+            self.__iface.messageBar().pushMessage("Info", u"Toutes les couches ont été chargées avec succès dans le projet / Total des erreurs :" + str(totalError), level=QgsMessageBar.INFO, duration=0)
+        else:
+            print "Erreur totale : " + str(totalError)
+            self.__iface.messageBar().clearWidgets()
+            self.__iface.messageBar().pushMessage("Info", u"Yes !! Aucune erreur a été détectée sur la zone définie ", level=QgsMessageBar.INFO, duration=5)
 
     def __addCtrlLayers(self, layers):
-        totalError = 0 # décompte des erreurs détectées (nombre d'objets dans chaque couche)
+        """
+        Ajout des couches du résultats des requêtes de contrôles
+        :param layers: Liste des couches à ajouter au projet
+        :return:
+        """
+
+
+        groupName = 'CONTROL (' +datetime.now().strftime("%Y-%m-%d")+')' # définir le nom du groupe dans lequel seront ajouté chaque couche
+        project_tree = QgsProject.instance().layerTreeRoot()             # arbre des couches
+        if project_tree.findGroup(groupName) is None:
+            #iface.legendInterface().addGroup( 'CONTROL')
+            ctrl_group = project_tree.insertGroup(0,groupName)
+        else:
+            ctrl_group = project_tree.findGroup(groupName)
+        ctrl_group.removeAllChildren()                                  # effacer les couches existantes prend du temps !!
+
+
         for i in range(0,len(layers)):
-            totalError = totalError + layers[i].featureCount()
-        print "Erreur totale : " + str(totalError)
+            QgsMapLayerRegistry.instance().addMapLayer(layers[i],False)
+            ctrl_group.insertLayer(i,layers[i])
+        self.__iface.mapCanvas().refresh()                              # rafraîchir la carte
+
+
 
     def __request1(self):
         """
