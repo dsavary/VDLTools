@@ -61,6 +61,7 @@ class ControlTool(AreaTool):
         self.__crs = None
         self.__registry = QgsMapLayerRegistry.instance() # définition du registre des couches dans le projet
         self.tableConfig = 'usr_control_request' # nom de la table/couche dans le projet qui liste tous les contrôles possible
+        self.__layerCfgControl = None
         self.__lrequests = [] # liste des requêtes actives
         self.areaMax = 1000000 # tolérance de surface max. pour lancer un contrôle
 
@@ -93,13 +94,12 @@ class ControlTool(AreaTool):
         Test si la couche / table qui contient l'ensemble des contrôles existe bien dans le projet
         """
 
-        global layerCfgControl
         try:
-            layerCfgControl = (l for l in self.__registry.mapLayers().values() if QgsDataSourceURI(l.source()).table() == self.tableConfig and hasattr(l, 'providerType') and l.providerType() == 'postgres').next()
+            self.__layerCfgControl = (l for l in self.__registry.mapLayers().values() if QgsDataSourceURI(l.source()).table() == self.tableConfig and hasattr(l, 'providerType') and l.providerType() == 'postgres').next()
         except StopIteration:
             textConfigLayer = u"La couche qui définit la liste des contrôles possible a mal été définie ou n'existe pas dans le projet, veuilliez l'ajouter au projet"
             self.__iface.messageBar().pushMessage(textConfigLayer, level=QgsMessageBar.CRITICAL, duration=5)
-            layerCfgControl = None
+            self.__layerCfgControl = None
 
         """
         Test si la zone de contrôle a bien été définie par l'utilisateur
@@ -137,7 +137,7 @@ class ControlTool(AreaTool):
                 Liste des contrôles actifs existants
                 """
                 req = QgsFeatureRequest().setFilterExpression('"active" is true')
-                for f in layerCfgControl.getFeatures(req):
+                for f in self.__layerCfgControl.getFeatures(req):
                     lrequests = {}
                     lrequests["id"]=str(f[u"id"])
                     lrequests["name"]=f[u"layer_name"]
@@ -206,7 +206,7 @@ class ControlTool(AreaTool):
         i = 0
         totalError = 0                                                  # décompte des erreurs détectées (nombre d'objets dans chaque couche)
         for name in requete:
-            for q in layerCfgControl.getFeatures(QgsFeatureRequest(int(name))):
+            for q in self.__layerCfgControl.getFeatures(QgsFeatureRequest(int(name))):
                 query_fct = q[u"sql_function"]
                 query_fct = query_fct.replace("bbox",bbox)
                 geom_type = QgsWKBTypes.parseType(q[u"geom_type"])      # récupérer le type de géométrie QGIS "QgsWKBTypes" depuis un type de géométrie WKT Postgis
