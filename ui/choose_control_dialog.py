@@ -55,15 +55,19 @@ class ChooseControlDialog(QDialog):
 
         self.__layout.addWidget(self.__confirmLabel, 0, 0, 1, 2)
 
-        self.__controlsSelected = []
+        """
+        Boite de dialogue avec une liste de contrôle à sélectionner (QListWidget / QListWidgetItem)
+        """
+        '''
 
-        self.__viewReq = QListWidget()
-        self.__viewReq.setSelectionMode(3)
-        self.__layout.addWidget(self.__viewReq,2,0,1,2)
+        self.__controlsSelected = []
+        self.__viewReq = QListWidget()                                      # contructeur de la liste
+        self.__viewReq.setSelectionMode(3)                                  # mode de sélection (sélection étendue)
+        self.__layout.addWidget(self.__viewReq,2,0,1,2)                     # ajout de la liste (widget) dans la boite de dialogue)
 
         for i in range(len(self.__listReq)):
             textItem = u""+ self.__listReq[i].get("id") + " - " + self.__listReq[i].get("name") + " (" + self.__listReq[i].get("code") + ")"
-            itemReq = QListWidgetItem()
+            itemReq = QListWidgetItem()                                     # ajout des items pour chaque objet contrôle
             itemReq.setText(textItem)
             self.__viewReq.insertItem(i,itemReq)
             #self.__viewReq.addItem(itemReq)
@@ -74,7 +78,7 @@ class ChooseControlDialog(QDialog):
                 itemReq.setSelected(False)
                 itemReq.setCheckState(Qt.Unchecked)
             self.__controlsSelected.append(itemReq)
-
+        '''
 
         self.__group = QButtonGroup()
 
@@ -102,20 +106,7 @@ class ChooseControlDialog(QDialog):
             self.__controlsChecks.append(check)
             self.__scrollLayout.addWidget(self.__controlsChecks[i], i+1, 1)
 
-        """
-        version précédente
 
-        for i in range(len(self.__names)):
-            label = QLabel(self.__names[i])
-            label.setMinimumHeight(20)
-            label.setMinimumWidth(50)
-            self.__controlsLabels.append(label)
-            self.__scrollLayout.addWidget(self.__controlsLabels[i], i+1, 0)
-            check = QCheckBox()
-            check.setChecked(False)
-            self.__controlsChecks.append(check)
-            self.__scrollLayout.addWidget(self.__controlsChecks[i], i+1, 1)
-        """
         widget = QWidget()
         widget.setLayout(self.__scrollLayout)
 
@@ -168,12 +159,12 @@ class ChooseControlDialog(QDialog):
         return self.__cancelButton
 
     def allSelect(self):
-        self.__viewReq.selectAll()
+        #self.__viewReq.selectAll()
         for i in range(len(self.__controlsChecks)):
             self.__controlsChecks[i].setChecked(True)
 
     def deSelect(self):
-        self.__viewReq.clearSelection()
+        #self.__viewReq.clearSelection()
         for i in range(len(self.__controlsChecks)):
             self.__controlsChecks[i].setChecked(False)
 
@@ -188,16 +179,13 @@ class ChooseControlDialog(QDialog):
                 #controls.append(self.__names[i])
                 controls.append(self.__listReq[i].get("id"))
 
-        controls_2 = []
+        '''
+        # liste des contrôles sélectionnés dans la liste si on utilise le widget QListWidgetItem / QListWidget
+        controls = []
         for i in range(len(self.__listReq)):
             if self.__controlsSelected[i].isSelected():
-                controls_2.append(self.__listReq[i].get("id"))
-        print controls_2
-        """
-        version précédente
+                controls.append(self.__listReq[i].get("id"))
+        #print controls
+        '''
 
-        for i in range(len(self.__names)):
-            if self.__controlsChecks[i].isChecked():
-                controls.append(self.__names[i])
-        """
         return controls

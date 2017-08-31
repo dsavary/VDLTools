@@ -35,7 +35,8 @@ from qgis.core import (QgsMapLayerRegistry,
                        QgsFeatureRequest,
                        QgsProject,
                        QGis,
-                       QgsWKBTypes)
+                       QgsWKBTypes,
+                       QgsMapLayerStyle)
 from ..core.db_connector import DBConnector
 from datetime import datetime
 
@@ -203,6 +204,7 @@ class ControlTool(AreaTool):
         uri.setConnection(self.__db.hostName(),str(self.__db.port()), self.__db.databaseName(),self.__db.userName(),self.__db.password())
         uri.setSrid(str(self.__crs))
         outputLayers = [] # listes des couches de résultats à charger dans le projet
+        styleLayers = []       # listes des styles de couches (fichier qml)
         i = 0
         totalError = 0                                                  # décompte des erreurs détectées (nombre d'objets dans chaque couche)
         for name in requete:
@@ -213,16 +215,18 @@ class ControlTool(AreaTool):
                 uri.setWkbType(geom_type)
                 uri.setDataSource('',query_fct,q[u"geom_name"],"",q[u"key_attribute"])
                 layer = QgsVectorLayer(uri.uri(),q[u"layer_name"], "postgres")
+
                 #print(layer.name())
                 #print(layer.featureCount())
                 totalError = totalError + layer.featureCount()
                 if layer.featureCount() > 0:
                     outputLayers.append(layer)
+                    styleLayers.append(str(q[u"layer_style"]))
             percent = (float(i+1.0)/float(len(requete))) * 100           # Faire évoluer la barre de progression du traitement
             progress.setValue(percent)
             i += 1
         if len(outputLayers) > 0:
-            self.__addCtrlLayers(outputLayers)
+            self.__addCtrlLayers(outputLayers, styleLayers)
             #print "Erreur totale : " + str(totalError)
             self.__iface.messageBar().clearWidgets()
             self.__iface.messageBar().pushMessage("Info", u"Toutes les couches ont été chargées avec succès dans le projet / Total des erreurs :" + str(totalError), level=QgsMessageBar.INFO, duration=10)
@@ -231,7 +235,7 @@ class ControlTool(AreaTool):
             self.__iface.messageBar().clearWidgets()
             self.__iface.messageBar().pushMessage("Info", u"Yes !! Aucune erreur a été détectée sur la zone définie ", level=QgsMessageBar.INFO, duration=5)
 
-    def __addCtrlLayers(self, layers):
+    def __addCtrlLayers(self, layers, styles):
         """
         Ajout des couches du résultats des requêtes de contrôles
         :param layers: Liste des couches à ajouter au projet
@@ -249,6 +253,15 @@ class ControlTool(AreaTool):
 
 
         for i in range(0,len(layers)):
+            '''
+            layerStyle = QgsMapLayerStyle('//geodata.lausanne.ch/data/QGIS_projet/eauservice/qwat_lausanne/qml/control_layer/conduites_non_connectees.qml')
+            layerStyle.writeToLayer(layers[i])
+            layers[i].triggerRepaint()
+            layerStyleManager = layers[i].styleManager()
+            layerStyleManager.addStyle('control_style', layerStyle)
+            layerStyleManager.setCurrentStyle('control_style')
+            '''
+            layers[i].loadNamedStyle(styles[i])
             QgsMapLayerRegistry.instance().addMapLayer(layers[i],False)
             ctrl_group.insertLayer(i,layers[i])
         self.__iface.mapCanvas().refresh()                              # rafraîchir la carte
